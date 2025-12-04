@@ -33,9 +33,9 @@ class SensorWidget(QWidget):
     
     def update_value(self, value):
         """Update the sensor value display."""
-        # Assuming your sensor.ui has a label named 'label_value'
-        if hasattr(self, 'label_value'):
-            self.label_value.setText(f"{value}°C")
+        # Update the LCD number with the temperature value
+        if hasattr(self, 'lcdNumber'):
+            self.lcdNumber.display(value)
 
 
 class MainWindow(QMainWindow):

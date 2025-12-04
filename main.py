@@ -22,24 +22,7 @@ class MainWindow(QMainWindow):
             print(f"Error: UI file not found at {ui_file}")
             sys.exit(1)
         
-        # Set window properties from UI file metadata
-        self.setWindowTitle("MainWindow")
-        self.setGeometry(0, 0, 800, 600)
         
-        # Create central widget
-        self.central_widget = QWidget()
-        self.setCentralWidget(self.central_widget)
-        
-        # Create a layout for the central widget
-        layout = QVBoxLayout(self.central_widget)
-        layout.setContentsMargins(0, 0, 0, 0)
-        
-        # Create menu bar
-        self.menubar = self.menuBar()
-        
-        # Create status bar
-        self.statusbar = self.statusBar()
-
 
 def main():
     """Main entry point for the application."""

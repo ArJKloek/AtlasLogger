@@ -1,7 +1,6 @@
 import sys
-import subprocess
 from pathlib import Path
-from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget
+from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout
 from PyQt6.QtCore import Qt
 
 
@@ -18,36 +17,28 @@ class MainWindow(QMainWindow):
         ui_dir = Path(__file__).parent / "ui"
         ui_file = ui_dir / "main.ui"
         
-        # Compile UI file to Python module
-        ui_module_path = ui_dir / "main_ui.py"
-        
-        try:
-            # Use pyuic6 to convert .ui to .py
-            subprocess.run(
-                ["pyuic6", str(ui_file), "-o", str(ui_module_path)],
-                check=True,
-                capture_output=True
-            )
-        except FileNotFoundError:
-            print("Error: pyuic6 not found. Install it with: pip install PyQt6-tools")
-            sys.exit(1)
-        except subprocess.CalledProcessError as e:
-            print(f"Error compiling UI file: {e.stderr.decode()}")
+        # Check if UI file exists
+        if not ui_file.exists():
+            print(f"Error: UI file not found at {ui_file}")
             sys.exit(1)
         
-        # Import the generated UI module
-        import importlib.util
-        spec = importlib.util.spec_from_file_location("main_ui", ui_module_path)
-        ui_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(ui_module)
+        # Set window properties from UI file metadata
+        self.setWindowTitle("MainWindow")
+        self.setGeometry(0, 0, 800, 600)
         
-        # Create a central widget and setup the UI
+        # Create central widget
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
         
-        # Setup the UI
-        self.ui = ui_module.Ui_MainWindow()
-        self.ui.setupUi(self)
+        # Create a layout for the central widget
+        layout = QVBoxLayout(self.central_widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Create menu bar
+        self.menubar = self.menuBar()
+        
+        # Create status bar
+        self.statusbar = self.statusBar()
 
 
 def main():

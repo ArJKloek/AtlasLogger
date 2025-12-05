@@ -78,7 +78,10 @@ class ThermoThread(QThread):
     def run(self) -> None:  # pragma: no cover - involves timing and threads
         if self._startup_error:
             self.error.emit(f"Falling back to dummy: {self._startup_error}")
+        
+        noise_source = "Perlin noise" if HAS_PERLIN else "sine wave (fallback)"
         self.source_changed.emit(self.source)
+        self.error.emit(f"Using {noise_source} for dummy data")
 
         while not self._stop:
             readings: List[float] = []

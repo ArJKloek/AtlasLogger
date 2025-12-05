@@ -1,7 +1,7 @@
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout
+from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QGridLayout
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFontDatabase
 from PyQt6 import uic
@@ -99,22 +99,24 @@ class MainWindow(QMainWindow):
         self.start_worker()
     
     def setup_sensors(self):
-        """Add multiple sensor widgets to the main window."""
-        # Create a layout for the central widget if it doesn't have one
+        """Add multiple sensor widgets to the main window in two columns."""
+        # Create a grid layout for the central widget if it doesn't have one
         if not self.centralwidget.layout():
-            layout = QVBoxLayout(self.centralwidget)
+            layout = QGridLayout(self.centralwidget)
             self.centralwidget.setLayout(layout)
-        
-        # Get the layout
-        layout = self.centralwidget.layout()
-        
-        # Add a widget per channel
+        else:
+            layout = self.centralwidget.layout()
+
+        # Add sensors in a 2-column grid
         for idx in range(self.channel_count):
             sensor = SensorWidget(f"Thermocouple {idx + 1}")
-            layout.addWidget(sensor)
+            row = idx // 2
+            col = idx % 2
+            layout.addWidget(sensor, row, col)
             self.sensors.append(sensor)
 
-        layout.addStretch()
+        # Add stretch at the bottom
+        layout.addStretch(self.channel_count // 2 + 1, 0)
 
     def start_worker(self):
         """Start the background reader thread."""

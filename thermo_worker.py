@@ -19,7 +19,7 @@ class DummySMtc:
 
     def __init__(self, channels: int = 8):
         self.channels = channels
-        self.time_scale = 0.01  # Slower time scale for smoother variation
+        self.time_scale = 0.005  # Very slow time scale for extremely smooth variation
         if HAS_PERLIN:
             # Create independent Perlin noise generators for each channel with more octaves for smoothness
             self.noise_generators = [PerlinNoise(octaves=6, seed=ch) for ch in range(channels)]

@@ -2,11 +2,12 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QGridLayout
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFontDatabase
 from PyQt6 import uic
 
 from thermo_worker import ThermoThread
+from epaper_display import EpaperDisplay
 
 
 def load_fonts():
@@ -72,6 +73,11 @@ class MainWindow(QMainWindow):
         self.channel_count = 8
         self.sensors = []
         self.worker = None
+        self.epaper = EpaperDisplay()
+        self.last_readings = []
+        self.epaper_update_timer = QTimer()
+        self.epaper_update_timer.timeout.connect(self.update_epaper_display)
+        self.epaper_update_timer.start(5000)  # Update e-paper every 5 seconds
         self.init_ui()
     
     def init_ui(self):
@@ -128,6 +134,7 @@ class MainWindow(QMainWindow):
         self.worker.start()
 
     def update_readings(self, readings):
+        self.last_readings = readings
         for idx, value in enumerate(readings):
             if idx < len(self.sensors):
                 self.sensors[idx].update_value(value)
@@ -143,9 +150,17 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'statusbar'):
             self.statusbar.showMessage(message, 5000)
 
+    def update_epaper_display(self):
+        """Update e-paper display with current readings."""
+        if self.last_readings:
+            self.epaper.display_readings(self.last_readings)
+
     def closeEvent(self, event):
+        self.epaper_update_timer.stop()
         if self.worker and self.worker.isRunning():
             self.worker.stop()
+        if self.epaper:
+            self.epaper.sleep()
         super().closeEvent(event)
         
 

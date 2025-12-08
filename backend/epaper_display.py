@@ -13,8 +13,13 @@ from PIL import Image, ImageDraw, ImageFont
 try:
     from waveshare_epd import epd7in5_V2
     HAS_EPAPER = True
-except ImportError:
+    print("[EPAPER] Successfully imported waveshare_epd library")
+except ImportError as e:
     HAS_EPAPER = False
+    print(f"[EPAPER] Failed to import waveshare_epd: {e}")
+except Exception as e:
+    HAS_EPAPER = False
+    print(f"[EPAPER] Error importing waveshare_epd: {e}")
 
 
 class EpaperDisplay:
@@ -35,8 +40,12 @@ class EpaperDisplay:
         self.data_start_y = 110  # Y position where temperature data starts
         self.data_height = 360  # Height of data region (4 rows * 70 pixels + margin)
 
+        print(f"[EPAPER] EpaperDisplay __init__, HAS_EPAPER={HAS_EPAPER}")
+        
         if HAS_EPAPER:
             self._init_epaper()
+        else:
+            print("[EPAPER] waveshare_epd not available, e-paper display disabled")
 
     def _init_epaper(self) -> None:
         """Initialize e-paper display and fonts."""

@@ -8,6 +8,7 @@ from PyQt6 import uic
 
 from backend.thermo_worker import ThermoThread
 from backend.epaper_display import EpaperDisplay
+from backend.thermo_logger import ThermoLogger
 
 
 def load_fonts():
@@ -91,10 +92,14 @@ class MainWindow(QMainWindow):
         self.sensors = []
         self.worker = None
         self.epaper = EpaperDisplay()
+        self.logger = ThermoLogger()
         self.last_readings = []
         self.epaper_update_timer = QTimer()
         self.epaper_update_timer.timeout.connect(self.update_epaper_display)
         self.epaper_update_timer.start(5000)  # Update e-paper every 5 seconds
+        self.logging_timer = QTimer()
+        self.logging_timer.timeout.connect(self.on_logging_timer)
+        self.logging_interval = 5  # Default 5 seconds
         self.init_ui()
     
     def init_ui(self):
@@ -117,6 +122,9 @@ class MainWindow(QMainWindow):
         
         # Add sensor widgets to the central widget
         self.setup_sensors()
+
+        # Connect menu actions
+        self.connect_logging_controls()
 
         # Start background reader (uses dummy data when hardware is absent)
         self.start_worker()
@@ -172,7 +180,83 @@ class MainWindow(QMainWindow):
         if self.last_readings:
             self.epaper.display_readings(self.last_readings)
 
+    def connect_logging_controls(self):
+        """Connect menu actions to their respective handlers."""
+        if hasattr(self, 'actionStart'):
+            self.actionStart.triggered.connect(self.start_logging)
+        if hasattr(self, 'actionStop'):
+            self.actionStop.triggered.connect(self.stop_logging)
+        if hasattr(self, 'actionReset'):
+            self.actionReset.triggered.connect(self.reset_logging)
+        if hasattr(self, 'action5_sec'):
+            self.action5_sec.triggered.connect(lambda: self.set_logging_interval(5))
+        if hasattr(self, 'action20'):
+            self.action20.triggered.connect(lambda: self.set_logging_interval(20))
+        if hasattr(self, 'action1_min'):
+            self.action1_min.triggered.connect(lambda: self.set_logging_interval(60))
+
+    def start_logging(self):
+        """Start logging temperature data."""
+        self.logger.start_logging()
+        self.logging_timer.start(self.logging_interval * 1000)
+        if hasattr(self, 'actionStart'):
+            self.actionStart.setEnabled(False)
+        if hasattr(self, 'actionStop'):
+            self.actionStop.setEnabled(True)
+        if hasattr(self, 'actionReset'):
+            self.actionReset.setEnabled(True)
+        if hasattr(self, 'statusbar'):
+            self.statusbar.showMessage("Logging started", 3000)
+
+    def stop_logging(self):
+        """Stop logging temperature data."""
+        self.logging_timer.stop()
+        self.logger.stop_logging()
+        if hasattr(self, 'actionStart'):
+            self.actionStart.setEnabled(True)
+        if hasattr(self, 'actionStop'):
+            self.actionStop.setEnabled(False)
+        if hasattr(self, 'statusbar'):
+            self.statusbar.showMessage("Logging stopped", 3000)
+
+    def reset_logging(self):
+        """Reset logging (stop and clear current log)."""
+        self.logging_timer.stop()
+        self.logger.stop_logging()
+        if hasattr(self, 'actionStart'):
+            self.actionStart.setEnabled(True)
+        if hasattr(self, 'actionStop'):
+            self.actionStop.setEnabled(False)
+        if hasattr(self, 'actionReset'):
+            self.actionReset.setEnabled(False)
+        if hasattr(self, 'statusbar'):
+            self.statusbar.showMessage("Logging reset", 3000)
+
+    def set_logging_interval(self, seconds):
+        """Set the logging interval."""
+        self.logging_interval = seconds
+        # Update radio button states
+        if hasattr(self, 'action5_sec'):
+            self.action5_sec.setChecked(seconds == 5)
+        if hasattr(self, 'action20'):
+            self.action20.setChecked(seconds == 20)
+        if hasattr(self, 'action1_min'):
+            self.action1_min.setChecked(seconds == 60)
+        # Restart timer if logging is active
+        if self.logging_timer.isActive():
+            self.logging_timer.stop()
+            self.logging_timer.start(self.logging_interval * 1000)
+        if hasattr(self, 'statusbar'):
+            self.statusbar.showMessage(f"Logging interval set to {seconds}s", 3000)
+
+    def on_logging_timer(self):
+        """Called when logging timer fires to log current readings."""
+        if self.last_readings:
+            self.logger.log_reading(self.last_readings)
+
     def closeEvent(self, event):
+        self.logging_timer.stop()
+        self.logger.stop_logging()
         self.epaper_update_timer.stop()
         if self.worker and self.worker.isRunning():
             self.worker.stop()

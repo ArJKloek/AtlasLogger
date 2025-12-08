@@ -31,9 +31,13 @@ class EpaperDisplay:
         self.width = width
         self.height = height
         self.epd = None
+        # Standard fonts for headers and labels
         self.font_large = None
         self.font_medium = None
         self.font_small = None
+        # Digital-7 Mono fonts for temperature values only
+        self.font_digital_large = None
+        self.font_digital_medium = None
         self.available = False
         self.last_readings: List[Optional[float]] = []
         self.last_update_time = None
@@ -63,7 +67,19 @@ class EpaperDisplay:
             self.epd.Clear()
             print("[EPAPER] EPD cleared")
 
-            # Load Digital-7 Mono font for e-paper (monospace digital display look)
+            # Load fonts
+            # Standard fonts for headers and labels
+            try:
+                self.font_large = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 32)
+                self.font_medium = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 24)
+                self.font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 18)
+            except:
+                # Fallback to default font
+                self.font_large = ImageFont.load_default()
+                self.font_medium = ImageFont.load_default()
+                self.font_small = ImageFont.load_default()
+
+            # Load Digital-7 Mono font for temperature values only
             # Get the project root directory (parent of backend/)
             project_root = Path(__file__).parent.parent
             
@@ -82,21 +98,19 @@ class EpaperDisplay:
             for path in font_path_options:
                 if Path(path).exists():
                     font_path = str(path)
-                    logging.info(f"Loaded font from: {font_path}")
-                    print(f"[EPAPER] Loaded font from: {font_path}")
+                    logging.info(f"Loaded Digital-7-Mono font from: {font_path}")
+                    print(f"[EPAPER] Loaded Digital-7-Mono font from: {font_path}")
                     break
 
             if font_path:
-                self.font_large = ImageFont.truetype(font_path, 48)
-                self.font_medium = ImageFont.truetype(font_path, 36)
-                self.font_small = ImageFont.truetype(font_path, 24)
+                self.font_digital_large = ImageFont.truetype(font_path, 48)
+                self.font_digital_medium = ImageFont.truetype(font_path, 36)
             else:
-                # Fallback to default font
-                logging.warning("Digital-7-Mono font not found, using default font")
-                print("[EPAPER] Digital-7-Mono font not found, using default font")
-                self.font_large = ImageFont.load_default()
-                self.font_medium = ImageFont.load_default()
-                self.font_small = ImageFont.load_default()
+                # Fallback to default font for temps too
+                logging.warning("Digital-7-Mono font not found, using default font for temperatures")
+                print("[EPAPER] Digital-7-Mono font not found, using default font for temperatures")
+                self.font_digital_large = ImageFont.load_default()
+                self.font_digital_medium = ImageFont.load_default()
 
             self.available = True
             logging.info("E-paper display initialized successfully")
@@ -179,11 +193,11 @@ class EpaperDisplay:
                 x_pos = 20 + col * (self.width // 2)
                 y_pos_current = self.data_start_y + row * 70
 
-                # Channel label
+                # Channel label (standard font)
                 label = f"CH {idx + 1}:"
                 draw.text((x_pos, y_pos_current), label, font=self.font_medium, fill=0)
 
-                # Temperature value
+                # Temperature value (Digital-7 Mono font)
                 try:
                     temp_val = float(reading)
                     if not math.isnan(temp_val):
@@ -193,7 +207,7 @@ class EpaperDisplay:
                 except (TypeError, ValueError):
                     value_text = "-- °C"
                 
-                draw.text((x_pos + 150, y_pos_current), value_text, font=self.font_medium, fill=0)
+                draw.text((x_pos + 150, y_pos_current), value_text, font=self.font_digital_medium, fill=0)
 
             print("[EPAPER] Calling display_Partial...")
             # Partial refresh the full screen (partial mode was already activated in init_display)

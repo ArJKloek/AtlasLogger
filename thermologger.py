@@ -205,6 +205,7 @@ class MainWindow(QMainWindow):
         """Start logging temperature data."""
         self.logger.start_logging()
         self.logging_timer.start(self.logging_interval * 1000)
+        self.epaper.set_logging_status(True)
         if hasattr(self, 'actionStart'):
             self.actionStart.setEnabled(False)
         if hasattr(self, 'actionStop'):
@@ -218,6 +219,7 @@ class MainWindow(QMainWindow):
         """Stop logging temperature data."""
         self.logging_timer.stop()
         self.logger.stop_logging()
+        self.epaper.set_logging_status(False)
         if hasattr(self, 'actionStart'):
             self.actionStart.setEnabled(True)
         if hasattr(self, 'actionStop'):
@@ -229,6 +231,7 @@ class MainWindow(QMainWindow):
         """Reset logging (stop and clear current log)."""
         self.logging_timer.stop()
         self.logger.stop_logging()
+        self.epaper.set_logging_status(False)
         if hasattr(self, 'actionStart'):
             self.actionStart.setEnabled(True)
         if hasattr(self, 'actionStop'):
@@ -258,7 +261,9 @@ class MainWindow(QMainWindow):
     def on_logging_timer(self):
         """Called when logging timer fires to log current readings."""
         if self.last_readings:
+            from datetime import datetime
             self.logger.log_reading(self.last_readings)
+            self.epaper.set_logging_status(True, datetime.now())
 
     def closeEvent(self, event):
         self.logging_timer.stop()

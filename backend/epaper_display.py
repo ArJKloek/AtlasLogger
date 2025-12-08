@@ -41,6 +41,8 @@ class EpaperDisplay:
         self.available = False
         self.last_readings: List[Optional[float]] = []
         self.last_update_time = None
+        self.logging_active = False
+        self.last_log_time = None
         self.initialized = False
         self.partial_mode_active = False  # Track if we're in partial update mode
         self.data_start_y = 110  # Y position where temperature data starts
@@ -150,6 +152,12 @@ class EpaperDisplay:
             logging.error(f"Error initializing e-paper display: {e}")
             print(f"[EPAPER ERROR] {e}")
 
+    def set_logging_status(self, is_logging: bool, last_log_time=None):
+        """Set the logging status to display on screen."""
+        self.logging_active = is_logging
+        if last_log_time:
+            self.last_log_time = last_log_time
+
     def display_readings(self, readings: List[float]) -> None:
         """Update only temperature readings with partial refresh (fast update)."""
         if not self.available or not self.epd:
@@ -177,6 +185,17 @@ class EpaperDisplay:
             # Draw timestamp in update region
             timestamp = self.last_update_time.strftime("%H:%M:%S")
             draw.text((10, 65), f"Updated: {timestamp}", font=self.font_small, fill=0)
+
+            # Draw logging status
+            if self.logging_active:
+                status_text = "Logging: ON"
+                draw.text((250, 65), status_text, font=self.font_small, fill=0)
+                if self.last_log_time:
+                    log_time_text = f"Last log: {self.last_log_time.strftime('%H:%M:%S')}"
+                    draw.text((450, 65), log_time_text, font=self.font_small, fill=0)
+            else:
+                status_text = "Logging: OFF"
+                draw.text((250, 65), status_text, font=self.font_small, fill=0)
 
             # Display readings in a grid (2 columns)
             for idx, reading in enumerate(readings):

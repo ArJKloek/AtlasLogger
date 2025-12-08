@@ -8,6 +8,7 @@ import logging
 import math
 from typing import List, Optional
 from datetime import datetime
+from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 

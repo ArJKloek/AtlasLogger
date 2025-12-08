@@ -284,6 +284,7 @@ class MainWindow(QMainWindow):
         if self.worker and self.worker.isRunning():
             self.worker.stop()
         if self.epaper:
+            self.epaper.clear()  # Clear the e-paper screen
             self.epaper.sleep()
         super().closeEvent(event)
         

@@ -72,9 +72,9 @@ class EpaperDisplay:
             # Load fonts
             # Standard fonts for headers and labels
             try:
-                self.font_large = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 32)
-                self.font_medium = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 24)
-                self.font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 18)
+                self.font_large = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 40)
+                self.font_medium = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 32)
+                self.font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 20)
             except:
                 # Fallback to default font
                 self.font_large = ImageFont.load_default()
@@ -105,8 +105,8 @@ class EpaperDisplay:
                     break
 
             if font_path:
-                self.font_digital_large = ImageFont.truetype(font_path, 48)
-                self.font_digital_medium = ImageFont.truetype(font_path, 36)
+                self.font_digital_large = ImageFont.truetype(font_path, 64)
+                self.font_digital_medium = ImageFont.truetype(font_path, 52)
             else:
                 # Fallback to default font for temps too
                 logging.warning("Digital-7-Mono font not found, using default font for temperatures")

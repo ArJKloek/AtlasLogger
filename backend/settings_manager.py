@@ -23,6 +23,7 @@ class SettingsManager:
         """Load settings from JSON file."""
         if not self.settings_file.exists():
             logging.info(f"Settings file not found at {self.settings_file}, using defaults")
+            print(f"[SETTINGS] No settings file found, using defaults")
             return False
 
         try:
@@ -36,9 +37,12 @@ class SettingsManager:
                 self.channel_types = self.channel_types[:8]
                 
                 logging.info(f"Settings loaded from {self.settings_file}")
+                print(f"[SETTINGS] Loaded from {self.settings_file}")
+                print(f"[SETTINGS] Channel types: {self.channel_types}")
                 return True
         except Exception as e:
             logging.error(f"Error loading settings: {e}")
+            print(f"[SETTINGS ERROR] Failed to load: {e}")
             return False
 
     def save_settings(self) -> bool:
@@ -51,9 +55,11 @@ class SettingsManager:
                 json.dump(data, f, indent=2)
             logging.info(f"Settings saved to {self.settings_file}")
             print(f"[SETTINGS] Saved to {self.settings_file}")
+            print(f"[SETTINGS] Channel types: {self.channel_types}")
             return True
         except Exception as e:
             logging.error(f"Error saving settings: {e}")
+            print(f"[SETTINGS ERROR] Failed to save: {e}")
             return False
 
     def get_channel_type(self, channel: int) -> str:

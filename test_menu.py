@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Simple PyQt6 menu test program for Raspberry Pi."""
+"""Simple PyQt5 menu test program for Raspberry Pi."""
 
 import sys
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                              QLabel, QMenuBar, QMenu, QMessageBox)
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QAction
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
+                              QLabel, QMenuBar, QMenu, QMessageBox, QAction)
+from PyQt5.QtCore import Qt
 
 
 class TestMenuWindow(QMainWindow):
@@ -30,7 +29,7 @@ class TestMenuWindow(QMainWindow):
         
         # Add label
         self.label = QLabel("Menu Test - Click on the menu items above")
-        self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.label)
         
         # Create menu bar
@@ -135,8 +134,8 @@ class TestMenuWindow(QMainWindow):
     def show_about(self):
         """Show about dialog."""
         QMessageBox.about(self, "About", 
-                         "PyQt6 Menu Test\n\nThis is a test program to verify "
-                         "that menus work correctly on Raspberry Pi with PyQt6.")
+                         "PyQt5 Menu Test\n\nThis is a test program to verify "
+                         "that menus work correctly on Raspberry Pi with PyQt5.")
 
 
 def main():
@@ -144,10 +143,9 @@ def main():
     app = QApplication(sys.argv)
     
     print("=" * 60)
-    print("PyQt6 Menu Test Program")
+    print("PyQt5 Menu Test Program")
     print("=" * 60)
     print(f"Qt version: {app.instance().applicationVersion()}")
-    print(f"Platform: {app.platformName()}")
     print("=" * 60)
     
     window = TestMenuWindow()
@@ -156,7 +154,7 @@ def main():
     print("\nWindow displayed. Try clicking on the menu items.")
     print("If you can't see the menu bar, there may be a Qt platform issue.\n")
     
-    sys.exit(app.exec())
+    sys.exit(app.exec_())
 
 
 if __name__ == "__main__":

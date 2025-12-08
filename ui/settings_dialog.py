@@ -1,7 +1,7 @@
 """Settings dialog for configuring thermocouple types."""
 
 from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QGridLayout,
-                              QLabel, QComboBox, QPushButton, QGroupBox, QMessageBox)
+                              QLabel, QComboBox, QPushButton, QGroupBox, QMessageBox, QCheckBox)
 from PyQt5.QtCore import Qt
 from backend.settings_manager import SettingsManager
 
@@ -82,6 +82,18 @@ class SettingsDialog(QDialog):
         info_label.setStyleSheet("padding: 10px; background-color: #f0f0f0; border-radius: 5px;")
         layout.addWidget(info_label)
 
+        # Display settings group
+        display_group = QGroupBox("Display Settings")
+        display_layout = QVBoxLayout()
+        display_group.setLayout(display_layout)
+        
+        # Show preview checkbox
+        self.show_preview_checkbox = QCheckBox("Show E-Paper Preview Window")
+        self.show_preview_checkbox.setToolTip("Display a window showing what is being shown on the e-paper display")
+        display_layout.addWidget(self.show_preview_checkbox)
+        
+        layout.addWidget(display_group)
+
         # Buttons
         button_layout = QHBoxLayout()
         
@@ -129,6 +141,9 @@ class SettingsDialog(QDialog):
                 index = self.channel_combos[i].findText(tc_type)
                 if index >= 0:
                     self.channel_combos[i].setCurrentIndex(index)
+        
+        # Load preview window setting
+        self.show_preview_checkbox.setChecked(self.settings_manager.show_preview)
 
     def set_all_to_k(self):
         """Set all channels to Type K."""
@@ -138,10 +153,12 @@ class SettingsDialog(QDialog):
     def save_settings(self):
         """Save the settings and close dialog."""
         types = [combo.currentText() for combo in self.channel_combos]
+        self.settings_manager.show_preview = self.show_preview_checkbox.isChecked()
+        
         if self.settings_manager.set_all_channel_types(types):
             if self.settings_manager.save_settings():
                 QMessageBox.information(self, "Settings Saved", 
-                                      "Thermocouple type settings have been saved successfully.")
+                                      "Settings have been saved successfully.\n\nRestart the application for preview window changes to take effect.")
                 self.accept()
             else:
                 QMessageBox.warning(self, "Save Error", 

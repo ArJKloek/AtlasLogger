@@ -133,9 +133,11 @@ class MainWindow(QMainWindow):
         self.logging_timer.timeout.connect(self.on_logging_timer)
         self.logging_interval = 5  # Default 5 seconds
         
-        # Create e-paper preview window
-        self.preview_window = EpaperPreviewWindow()
-        self.preview_window.show()
+        # Create e-paper preview window if enabled in settings
+        self.preview_window = None
+        if self.settings_manager.show_preview:
+            self.preview_window = EpaperPreviewWindow()
+            self.preview_window.show()
         
         self.init_ui()
     

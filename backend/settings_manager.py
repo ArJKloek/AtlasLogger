@@ -17,6 +17,7 @@ class SettingsManager:
     def __init__(self, settings_file: str | Path = "settings.json"):
         self.settings_file = Path(settings_file)
         self.channel_types: List[str] = [self.DEFAULT_TYPE] * 8
+        self.show_preview: bool = True  # Show e-paper preview by default
         self.load_settings()
 
     def load_settings(self) -> bool:
@@ -30,6 +31,7 @@ class SettingsManager:
             with open(self.settings_file, 'r') as f:
                 data = json.load(f)
                 self.channel_types = data.get('channel_types', [self.DEFAULT_TYPE] * 8)
+                self.show_preview = data.get('show_preview', True)
                 
                 # Ensure we have exactly 8 channels
                 while len(self.channel_types) < 8:
@@ -49,7 +51,8 @@ class SettingsManager:
         """Save settings to JSON file."""
         try:
             data = {
-                'channel_types': self.channel_types
+                'channel_types': self.channel_types,
+                'show_preview': self.show_preview
             }
             with open(self.settings_file, 'w') as f:
                 json.dump(data, f, indent=2)

@@ -197,7 +197,7 @@ class MainWindow(QMainWindow):
 
     def start_worker(self):
         """Start the background reader thread."""
-        self.worker = ThermoThread(interval_sec=1.0, channels=self.channel_count)
+        self.worker = ThermoThread(interval_sec=1.0, channels=self.channel_count, settings_manager=self.settings_manager)
         self.worker.reading_ready.connect(self.update_readings)
         self.worker.source_changed.connect(self.on_source_changed)
         self.worker.error.connect(self.on_error)

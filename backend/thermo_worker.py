@@ -53,10 +53,11 @@ class ThermoThread(QThread):
     source_changed = pyqtSignal(str)
     error = pyqtSignal(str)
 
-    def __init__(self, interval_sec: float = 1.0, channels: int = 8, parent=None):
+    def __init__(self, interval_sec: float = 1.0, channels: int = 8, settings_manager=None, parent=None):
         super().__init__(parent)
         self.interval_sec = max(0.1, float(interval_sec))
         self.channels = channels
+        self.settings_manager = settings_manager
         self._stop = False
         self._startup_error = ""
         self.device = None
@@ -70,6 +71,31 @@ class ThermoThread(QThread):
 
             self.device = sm_tc.SMtc(0)
             self.source = "hardware"
+            
+            # Configure thermocouple types from settings if available
+            if self.settings_manager:
+                # Mapping from settings letter to sm_tc constants
+                tc_type_map = {
+                    'B': 0,  # _TC_TYPE_B
+                    'E': 1,  # _TC_TYPE_E
+                    'J': 2,  # _TC_TYPE_J
+                    'K': 3,  # _TC_TYPE_K
+                    'N': 4,  # _TC_TYPE_N
+                    'R': 5,  # _TC_TYPE_R
+                    'S': 6,  # _TC_TYPE_S
+                    'T': 7   # _TC_TYPE_T
+                }
+                
+                for channel in range(self.channels):
+                    tc_type_letter = self.settings_manager.get_channel_type(channel)
+                    if tc_type_letter in tc_type_map:
+                        tc_type_code = tc_type_map[tc_type_letter]
+                        try:
+                            self.device.set_sensor_type(channel + 1, tc_type_code)
+                            print(f"[HARDWARE] Set CH{channel + 1} to Type {tc_type_letter}")
+                        except Exception as e:
+                            print(f"[HARDWARE] Failed to set CH{channel + 1} type: {e}")
+            
         except Exception as exc:  # pragma: no cover - depends on hardware
             self.device = DummySMtc(self.channels)
             self.source = "dummy"

@@ -63,18 +63,22 @@ class EpaperDisplay:
             print("[EPAPER] EPD cleared")
 
             # Load Digital-7 Mono font for e-paper (monospace digital display look)
+            # Get the project root directory (parent of backend/)
+            project_root = Path(__file__).parent.parent
+            
             font_path_options = [
+                project_root / "fonts" / "Digital-7 Mono.ttf",
+                project_root / "fonts" / "digital-7-mono.ttf",
+                project_root / "fonts" / "Digital-7-Mono.ttf",
                 "/home/pi/.local/share/fonts/Digital-7-Mono.ttf",  # Raspberry Pi user fonts
                 "/usr/local/share/fonts/Digital-7-Mono.ttf",  # System-wide fonts
                 "/usr/share/fonts/truetype/Digital-7-Mono.ttf",
-                "./fonts/Digital-7-Mono.ttf",  # Local fonts directory
-                "fonts/Digital-7-Mono.ttf",
             ]
 
             font_path = None
             for path in font_path_options:
-                if os.path.exists(path):
-                    font_path = path
+                if Path(path).exists():
+                    font_path = str(path)
                     logging.info(f"Loaded font from: {font_path}")
                     print(f"[EPAPER] Loaded font from: {font_path}")
                     break

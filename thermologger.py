@@ -120,6 +120,12 @@ class MainWindow(QMainWindow):
             print(f"Error loading UI file: {e}")
             sys.exit(1)
         
+        # Ensure menubar is visible (critical for Raspberry Pi / PyQt6)
+        if hasattr(self, 'menubar'):
+            self.menubar.setNativeMenuBar(False)
+            self.menubar.setVisible(True)
+            print(f"[MENU] Menubar configured: visible={self.menubar.isVisible()}")
+        
         # Add sensor widgets to the central widget
         self.setup_sensors()
 

@@ -26,9 +26,15 @@
    <property name="nativeMenuBar">
     <bool>false</bool>
    </property>
+   <property name="defaultUp">
+    <bool>false</bool>
+   </property>
    <widget class="QMenu" name="menuLogging">
     <property name="title">
      <string>Logging</string>
+    </property>
+    <property name="tearOffEnabled">
+     <bool>false</bool>
     </property>
     <widget class="QMenu" name="menuTimelogging">
      <property name="title">

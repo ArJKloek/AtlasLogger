@@ -9,6 +9,8 @@ from PyQt5 import uic
 from backend.thermo_worker import ThermoThread
 from backend.epaper_display import EpaperDisplay
 from backend.thermo_logger import ThermoLogger
+from backend.settings_manager import SettingsManager
+from ui.settings_dialog import SettingsDialog
 
 
 def load_fonts():
@@ -120,6 +122,7 @@ class MainWindow(QMainWindow):
         self.channel_count = 8
         self.sensors = []
         self.worker = None
+        self.settings_manager = SettingsManager()
         self.epaper = EpaperDisplay()
         self.logger = ThermoLogger()
         self.last_readings = []
@@ -236,6 +239,13 @@ class MainWindow(QMainWindow):
             self.action20.triggered.connect(lambda: self.set_logging_interval(20))
         if hasattr(self, 'action1_min'):
             self.action1_min.triggered.connect(lambda: self.set_logging_interval(60))
+        if hasattr(self, 'actionConfiguration'):
+            self.actionConfiguration.triggered.connect(self.open_settings)
+
+    def open_settings(self):
+        """Open the settings dialog."""
+        dialog = SettingsDialog(self.settings_manager, self)
+        dialog.exec_()
 
     def start_logging(self):
         """Start logging temperature data."""

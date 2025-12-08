@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import sys
 import logging
+import math
 from typing import List, Optional
 from datetime import datetime
 
@@ -176,10 +177,15 @@ class EpaperDisplay:
                 draw.text((x_pos, y_pos_current), label, font=self.font_medium, fill=0)
 
                 # Temperature value
-                if isinstance(reading, float) and not float('nan'):
-                    value_text = f"{reading:.1f}°C"
-                else:
+                try:
+                    temp_val = float(reading)
+                    if not math.isnan(temp_val):
+                        value_text = f"{temp_val:.1f}°C"
+                    else:
+                        value_text = "-- °C"
+                except (TypeError, ValueError):
                     value_text = "-- °C"
+                
                 draw.text((x_pos + 150, y_pos_current), value_text, font=self.font_medium, fill=0)
 
             print("[EPAPER] Calling display_Partial...")

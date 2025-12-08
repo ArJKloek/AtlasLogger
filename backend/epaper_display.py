@@ -72,14 +72,16 @@ class EpaperDisplay:
             # Load fonts
             # Standard fonts for headers and labels
             try:
-                self.font_large = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 40)
+                self.font_large = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 32)
                 self.font_medium = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 32)
-                self.font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 20)
+                self.font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 18)
+                self.font_unit = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 20)
             except:
                 # Fallback to default font
                 self.font_large = ImageFont.load_default()
                 self.font_medium = ImageFont.load_default()
                 self.font_small = ImageFont.load_default()
+                self.font_unit = ImageFont.load_default()
 
             # Load Digital-7 Mono font for temperature values only
             # Get the project root directory (parent of backend/)
@@ -105,8 +107,8 @@ class EpaperDisplay:
                     break
 
             if font_path:
-                self.font_digital_large = ImageFont.truetype(font_path, 64)
-                self.font_digital_medium = ImageFont.truetype(font_path, 52)
+                self.font_digital_large = ImageFont.truetype(font_path, 72)
+                self.font_digital_medium = ImageFont.truetype(font_path, 60)
             else:
                 # Fallback to default font for temps too
                 logging.warning("Digital-7-Mono font not found, using default font for temperatures")
@@ -225,8 +227,8 @@ class EpaperDisplay:
                 
                 # Draw temperature number in Digital-7 Mono
                 draw.text((x_pos + 150, y_pos_current), value_text, font=self.font_digital_medium, fill=0)
-                # Draw unit (°C) in standard font right after the number
-                draw.text((x_pos + 280, y_pos_current), unit_text, font=self.font_medium, fill=0)
+                # Draw unit (°C) in small font as indicator, positioned higher
+                draw.text((x_pos + 320, y_pos_current + 5), unit_text, font=self.font_unit, fill=0)
 
             # Partial refresh the full screen (partial mode was already activated in init_display)
             self.epd.display_Partial(

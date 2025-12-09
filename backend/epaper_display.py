@@ -302,6 +302,29 @@ class EpaperDisplay:
 
         # Axes and labels
         draw.rectangle([x, y, x + w, y + h], outline=0, width=1)
+        
+        # Y-axis: degree labels on the left (5 ticks: 0, 37.5, 75, 112.5, 150)
+        y_ticks = [0, 37.5, 75, 112.5, 150]
+        for t in y_ticks:
+            ty = y_pos(t)
+            if ty is not None:
+                draw.line([x - 3, ty, x, ty], fill=0, width=1)
+                label = f"{int(t)}"
+                draw.text((x - 25, ty - 6), label, font=self.font_small, fill=0)
+        
+        # X-axis: 5 time ticks
+        time_points = []
+        for i in range(5):
+            idx = int(len(series_times) * i / 4) if len(series_times) > 0 else 0
+            if idx < len(series_times):
+                time_points.append((idx, series_times[idx]))
+        
+        for idx, ts in time_points:
+            tx = x_pos(idx)
+            draw.line([tx, y + h, tx, y + h + 3], fill=0, width=1)
+            # Format time as HH:MM
+            time_label = ts.strftime("%H:%M")
+            draw.text((tx - 15, y + h + 5), time_label, font=self.font_small, fill=0)
 
     def display_readings(self, readings: List[float]):
         """Update only temperature readings with partial refresh (fast update).
@@ -354,9 +377,12 @@ class EpaperDisplay:
 
             # Layout split: left for values, right for plot (50/50 split)
             left_width = int(self.width * 0.5)
-            right_x = left_width + 10
-            right_available = self.width - right_x - 10
+            right_available = self.width - left_width - 10
             right_width = int(right_available * 0.8)  # Plot takes 80% of available space
+            # Align plot to the right edge
+            plot_x = self.width - right_width - 10
+            # Plot height is 80% of available
+            plot_height = int((self.height - self.data_start_y - 10) * 0.8)
 
             # Compute vertical spacing to fit all enabled channels in one column
             available_height = self.height - self.data_start_y - 10
@@ -391,7 +417,7 @@ class EpaperDisplay:
                     draw.text((x_pos + 320, y_pos_current + 35), tc_type, font=font_tc, fill=0)
 
             # Plot last hour on the right
-            self._draw_plot(draw, enabled_indices, right_x, 110, right_width, self.height - 120)
+            self._draw_plot(draw, enabled_indices, plot_x, self.data_start_y, right_width, plot_height)
 
             # Partial refresh the full screen (partial mode was already activated in init_display)
             self.epd.display_Partial(

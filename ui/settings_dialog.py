@@ -21,7 +21,7 @@ class SettingsDialog(QDialog):
         self.setWindowTitle("ThermoLogger Settings")
         self.setModal(True)
         self.setMinimumWidth(600)
-        self.setMinimumHeight(700)
+        self.setMinimumHeight(500)
 
         layout = QVBoxLayout()
         self.setLayout(layout)
@@ -48,6 +48,18 @@ class SettingsDialog(QDialog):
             'R': '0°C to 1768°C',
             'B': '200°C to 1820°C'
         }
+        
+        # Tooltips for each type
+        type_tooltips = {
+            'K': 'Type K (Chromel-Alumel)\nGeneral purpose, most common\nRange: -200°C to 1372°C',
+            'J': 'Type J (Iron-Constantan)\nReducing atmospheres\nRange: -210°C to 1200°C',
+            'T': 'Type T (Copper-Constantan)\nLow temperature applications\nRange: -200°C to 400°C',
+            'E': 'Type E (Chromel-Constantan)\nHighest output sensitivity\nRange: -200°C to 1000°C',
+            'N': 'Type N (Nicrosil-Nisil)\nHigh stability, similar to K\nRange: -200°C to 1300°C',
+            'S': 'Type S (Platinum-Rhodium)\nPlatinum-based, high accuracy\nRange: 0°C to 1768°C',
+            'R': 'Type R (Platinum-Rhodium)\nPlatinum-based, high accuracy\nRange: 0°C to 1768°C',
+            'B': 'Type B (Platinum-Rhodium)\nVery high temperature applications\nRange: 200°C to 1820°C'
+        }
 
         # Create checkboxes and combo boxes for each channel
         self.channel_checkboxes = []
@@ -55,6 +67,7 @@ class SettingsDialog(QDialog):
             # Enable checkbox
             checkbox = QCheckBox()
             checkbox.setChecked(True)
+            checkbox.setToolTip("Enable or disable this channel")
             self.channel_checkboxes.append(checkbox)
             tc_layout.addWidget(checkbox, i + 1, 0, Qt.AlignCenter)
             
@@ -66,6 +79,11 @@ class SettingsDialog(QDialog):
             combo = QComboBox()
             combo.addItems(SettingsManager.THERMOCOUPLE_TYPES)
             combo.currentTextChanged.connect(lambda text, idx=i: self.update_range_label(idx, text))
+            
+            # Set tooltip for each item in the combo box
+            for idx, tc_type in enumerate(SettingsManager.THERMOCOUPLE_TYPES):
+                combo.setItemData(idx, type_tooltips[tc_type], Qt.ToolTipRole)
+            
             self.channel_combos.append(combo)
             tc_layout.addWidget(combo, i + 1, 2)
 
@@ -75,21 +93,6 @@ class SettingsDialog(QDialog):
             tc_layout.addWidget(range_label, i + 1, 3)
 
         layout.addWidget(tc_group)
-
-        # Information label
-        info_label = QLabel(
-            "<b>Thermocouple Type Information:</b><br>"
-            "• <b>Type K:</b> General purpose, most common<br>"
-            "• <b>Type J:</b> Iron-constantan, reducing atmospheres<br>"
-            "• <b>Type T:</b> Copper-constantan, low temperature<br>"
-            "• <b>Type E:</b> Chromel-constantan, highest output<br>"
-            "• <b>Type N:</b> High stability, similar to K<br>"
-            "• <b>Type S/R:</b> Platinum-based, high accuracy<br>"
-            "• <b>Type B:</b> Platinum-rhodium, very high temperature"
-        )
-        info_label.setWordWrap(True)
-        info_label.setStyleSheet("padding: 10px; background-color: #f0f0f0; border-radius: 5px;")
-        layout.addWidget(info_label)
 
         # Display settings group
         display_group = QGroupBox("Display Settings")

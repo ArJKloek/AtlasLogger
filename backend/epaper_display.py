@@ -275,29 +275,43 @@ class EpaperDisplay:
                 return None
             return y + h - int((val - vmin) / (vmax - vmin) * h)
 
-        # Line styles: solid, dashed, dotted, dashdot cycle
+        # Line styles: solid, dotted, dashed, dashdot, dash-dash-dot-dot
         def draw_series(points, style):
             if style == "solid":
                 for i in range(1, len(points)):
                     if points[i-1] and points[i]:
                         draw.line([points[i-1], points[i]], fill=0, width=2)
-            elif style == "dashed":
-                for i in range(1, len(points)):
-                    if points[i-1] and points[i] and i % 2 == 0:
-                        draw.line([points[i-1], points[i]], fill=0, width=2)
             elif style == "dotted":
                 for pt in points:
                     if pt:
-                        draw.ellipse([pt[0]-1, pt[1]-1, pt[0]+1, pt[1]+1], fill=0)
+                        draw.ellipse([pt[0]-2, pt[1]-2, pt[0]+2, pt[1]+2], fill=0)
+            elif style == "dashed":
+                for i in range(1, len(points)):
+                    if points[i-1] and points[i]:
+                        # Draw every other segment
+                        if i % 2 == 1:
+                            draw.line([points[i-1], points[i]], fill=0, width=2)
             elif style == "dashdot":
                 for i in range(1, len(points)):
                     if points[i-1] and points[i]:
-                        if i % 4 in (0,1):
+                        # Pattern: dash-dot-dash-dot (every 2 segments: 1 line, then 1 dot)
+                        if i % 4 in (1, 2):
                             draw.line([points[i-1], points[i]], fill=0, width=2)
-                        else:
-                            draw.ellipse([points[i][0]-1, points[i][1]-1, points[i][0]+1, points[i][1]+1], fill=0)
+                        elif i % 4 == 3:
+                            pt = points[i]
+                            draw.ellipse([pt[0]-2, pt[1]-2, pt[0]+2, pt[1]+2], fill=0)
+            elif style == "dashdashdotdot":
+                for i in range(1, len(points)):
+                    if points[i-1] and points[i]:
+                        # Pattern: dash-dash-dot-dot (8 steps: 2 dashes, then 2 dots)
+                        cycle_pos = i % 8
+                        if cycle_pos in (1, 2, 3, 4):  # Two dashes
+                            draw.line([points[i-1], points[i]], fill=0, width=2)
+                        elif cycle_pos in (6, 7):  # Two dots
+                            pt = points[i]
+                            draw.ellipse([pt[0]-2, pt[1]-2, pt[0]+2, pt[1]+2], fill=0)
 
-        styles = ["solid", "dashed", "dotted", "dashdot"]
+        styles = ["solid", "dotted", "dashed", "dashdot", "dashdashdotdot"]
 
         for si, series in enumerate(series_values):
             pts = []

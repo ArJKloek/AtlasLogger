@@ -37,6 +37,12 @@ class EpaperDisplay:
         self.font_medium = None
         self.font_small = None
         self.font_unit = None
+        self.font_tc_type = None
+        # Keep paths so we can resize dynamically later
+        self.font_path_normal = None
+        self.font_path_bold = None
+        self.font_path_oblique = None
+        self.font_path_digital = None
         # Digital-7 Mono fonts for temperature values only
         self.font_digital_large = None
         self.font_digital_medium = None
@@ -74,11 +80,15 @@ class EpaperDisplay:
             # Load fonts
             # Standard fonts for headers and labels
             try:
-                self.font_large = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 32)
-                self.font_medium = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 32)
-                self.font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 18)
-                self.font_unit = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 20)
-                self.font_tc_type = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf", 14)
+                self.font_path_bold = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+                self.font_path_normal = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+                self.font_path_oblique = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf"
+
+                self.font_large = ImageFont.truetype(self.font_path_bold, 32)
+                self.font_medium = ImageFont.truetype(self.font_path_normal, 32)
+                self.font_small = ImageFont.truetype(self.font_path_normal, 18)
+                self.font_unit = ImageFont.truetype(self.font_path_normal, 20)
+                self.font_tc_type = ImageFont.truetype(self.font_path_oblique, 14)
             except:
                 # Fallback to default font
                 self.font_large = ImageFont.load_default()
@@ -86,6 +96,9 @@ class EpaperDisplay:
                 self.font_small = ImageFont.load_default()
                 self.font_unit = ImageFont.load_default()
                 self.font_tc_type = ImageFont.load_default()
+                self.font_path_bold = None
+                self.font_path_normal = None
+                self.font_path_oblique = None
 
             # Load Digital-7 Mono font for temperature values only
             # Get the project root directory (parent of backend/)
@@ -111,6 +124,7 @@ class EpaperDisplay:
                     break
 
             if font_path:
+                self.font_path_digital = font_path
                 self.font_digital_large = ImageFont.truetype(font_path, 72)
                 self.font_digital_medium = ImageFont.truetype(font_path, 60)
             else:
@@ -119,6 +133,7 @@ class EpaperDisplay:
                 print("[EPAPER] Digital-7-Mono font not found, using default font for temperatures")
                 self.font_digital_large = ImageFont.load_default()
                 self.font_digital_medium = ImageFont.load_default()
+                self.font_path_digital = None
 
             self.available = True
             logging.info("E-paper display initialized successfully")
@@ -164,6 +179,41 @@ class EpaperDisplay:
         if last_log_time:
             self.last_log_time = last_log_time
 
+    def _make_font(self, path: Optional[str], size: int, fallback) -> ImageFont.FreeTypeFont:
+        """Create a font from path if available, otherwise fallback."""
+        if path:
+            try:
+                return ImageFont.truetype(path, size)
+            except Exception:
+                pass
+        return fallback
+
+    def _select_fonts(self, enabled_count: int):
+        """Select fonts dynamically based on how many channels are displayed."""
+        # Default sizes
+        medium_size = 32
+        unit_size = 20
+        tc_size = 14
+        digital_size = 60
+
+        if enabled_count > 6:
+            medium_size = 24
+            unit_size = 16
+            tc_size = 11
+            digital_size = 42
+        elif enabled_count > 4:
+            medium_size = 28
+            unit_size = 18
+            tc_size = 12
+            digital_size = 50
+
+        font_medium = self._make_font(self.font_path_normal, medium_size, self.font_medium)
+        font_unit = self._make_font(self.font_path_normal, unit_size, self.font_unit)
+        font_tc = self._make_font(self.font_path_oblique, tc_size, self.font_tc_type)
+        font_digital = self._make_font(self.font_path_digital, digital_size, self.font_digital_medium)
+
+        return font_medium, font_unit, font_tc, font_digital
+
     def display_readings(self, readings: List[float]):
         """Update only temperature readings with partial refresh (fast update).
         Returns the PIL Image that was displayed."""
@@ -204,23 +254,28 @@ class EpaperDisplay:
                 status_text = "Logging: OFF"
                 draw.text((250, 65), status_text, font=self.font_small, fill=0)
 
-            # Display readings in a grid (2 columns) - only for enabled channels
-            display_idx = 0  # Track position for display
-            for idx, reading in enumerate(readings):
-                # Skip disabled channels
-                if self.settings_manager and not self.settings_manager.is_channel_enabled(idx):
-                    continue
-                    
-                col = display_idx % 2
-                row = display_idx // 2
-                display_idx += 1
+            # Determine enabled channels
+            if self.settings_manager:
+                enabled_indices = [i for i in range(len(readings)) if self.settings_manager.is_channel_enabled(i)]
+            else:
+                enabled_indices = list(range(len(readings)))
 
-                x_pos = 20 + col * (self.width // 2)
-                y_pos_current = self.data_start_y + row * 70
+            enabled_count = len(enabled_indices)
+            font_medium, font_unit, font_tc, font_digital = self._select_fonts(enabled_count)
+
+            # Compute vertical spacing to fit all enabled channels in one column
+            available_height = self.height - self.data_start_y - 10
+            row_spacing = max(40, min(70, available_height // max(1, enabled_count)))
+
+            # Display readings in a single column on the left
+            for display_idx, idx in enumerate(enabled_indices):
+                reading = readings[idx]
+                x_pos = 20
+                y_pos_current = self.data_start_y + display_idx * row_spacing
 
                 # Channel label (standard font)
                 label = f"CH {idx + 1}:"
-                draw.text((x_pos, y_pos_current), label, font=self.font_medium, fill=0)
+                draw.text((x_pos, y_pos_current), label, font=font_medium, fill=0)
 
                 # Temperature value (Digital-7 Mono font for number, standard font for unit)
                 try:
@@ -236,14 +291,14 @@ class EpaperDisplay:
                     unit_text = "°C"
                 
                 # Draw temperature number in Digital-7 Mono
-                draw.text((x_pos + 150, y_pos_current), value_text, font=self.font_digital_medium, fill=0)
+                draw.text((x_pos + 150, y_pos_current), value_text, font=font_digital, fill=0)
                 # Draw unit (°C) in small font as indicator, positioned higher
-                draw.text((x_pos + 320, y_pos_current + 5), unit_text, font=self.font_unit, fill=0)
+                draw.text((x_pos + 320, y_pos_current + 5), unit_text, font=font_unit, fill=0)
                 
                 # Draw thermocouple type below the unit in italic, smaller font - aligned with bottom of unit
                 if self.settings_manager:
                     tc_type = self.settings_manager.get_channel_type(idx)
-                    draw.text((x_pos + 320, y_pos_current + 35), tc_type, font=self.font_tc_type, fill=0)
+                    draw.text((x_pos + 320, y_pos_current + 35), tc_type, font=font_tc, fill=0)
 
             # Partial refresh the full screen (partial mode was already activated in init_display)
             self.epd.display_Partial(

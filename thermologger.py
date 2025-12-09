@@ -1,10 +1,16 @@
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QGridLayout, QLabel
+from collections import deque
+from datetime import datetime, timedelta
+
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QGridLayout, QLabel, QHBoxLayout
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QFontDatabase, QPixmap, QImage, QPainter, QFont
 from PyQt5 import uic
+
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
 
 from backend.thermo_worker import ThermoThread
 from backend.epaper_display import EpaperDisplay
@@ -126,6 +132,7 @@ class MainWindow(QMainWindow):
         self.epaper = EpaperDisplay(settings_manager=self.settings_manager)
         self.logger = ThermoLogger(settings_manager=self.settings_manager)
         self.last_readings = []
+        self.history = deque(maxlen=3600)  # store last hour at 1 Hz
         self.epaper_update_timer = QTimer()
         self.epaper_update_timer.timeout.connect(self.update_epaper_display)
         self.epaper_update_timer.start(5000)  # Update e-paper every 5 seconds
@@ -165,8 +172,10 @@ class MainWindow(QMainWindow):
             self.menubar.setVisible(True)
             print(f"[MENU] Menubar configured: visible={self.menubar.isVisible()}")
         
-        # Add sensor widgets to the central widget
+        # Build layouts and plot
+        self.setup_layouts()
         self.setup_sensors()
+        self.setup_plot()
 
         # Connect menu actions
         self.connect_logging_controls()
@@ -174,34 +183,39 @@ class MainWindow(QMainWindow):
         # Start background reader (uses dummy data when hardware is absent)
         self.start_worker()
     
-    def setup_sensors(self):
-        """Add multiple sensor widgets to the main window in two columns."""
-        # Create a grid layout for the central widget if it doesn't have one
-        if not self.centralwidget.layout():
-            layout = QGridLayout(self.centralwidget)
-            self.centralwidget.setLayout(layout)
-        else:
-            layout = self.centralwidget.layout()
+    def setup_layouts(self):
+        """Create main layout with sensors on the left and plot on the right."""
+        main_layout = QHBoxLayout()
+        self.centralwidget.setLayout(main_layout)
 
-        # Add sensors in a 2-column grid - only enabled channels
+        # Left: sensors grid
+        self.sensors_container = QWidget()
+        self.sensors_layout = QGridLayout(self.sensors_container)
+        main_layout.addWidget(self.sensors_container, stretch=1)
+
+        # Right: plot canvas placeholder
+        self.plot_container = QWidget()
+        self.plot_layout = QVBoxLayout(self.plot_container)
+        main_layout.addWidget(self.plot_container, stretch=1)
+
+    def setup_sensors(self):
+        """Add multiple sensor widgets to the sensors grid - only enabled channels."""
         display_idx = 0
         for idx in range(self.channel_count):
             sensor = SensorWidget(f"Thermocouple {idx + 1}")
             self.sensors.append(sensor)
             
-            # Only add to layout if enabled
             if self.settings_manager.is_channel_enabled(idx):
                 row = display_idx // 2
                 col = display_idx % 2
-                layout.addWidget(sensor, row, col)
+                self.sensors_layout.addWidget(sensor, row, col)
                 sensor.show()
                 display_idx += 1
             else:
                 sensor.hide()
 
-        # Add stretch at the bottom
         stretch_row = (display_idx + 1) // 2 + 1
-        layout.setRowStretch(stretch_row, 1)
+        self.sensors_layout.setRowStretch(stretch_row, 1)
 
     def start_worker(self):
         """Start the background reader thread."""
@@ -213,11 +227,15 @@ class MainWindow(QMainWindow):
 
     def update_readings(self, readings):
         self.last_readings = readings
+        # Store timestamped reading for plotting
+        self.history.append((datetime.now(), list(readings)))
         for idx, value in enumerate(readings):
             if idx < len(self.sensors):
                 # Only update visible/enabled sensors
                 if self.settings_manager.is_channel_enabled(idx):
                     self.sensors[idx].update_value(value)
+
+        self.update_plot()
 
     def on_source_changed(self, source: str):
         message = f"Reading source: {source}"
@@ -236,6 +254,52 @@ class MainWindow(QMainWindow):
             image = self.epaper.display_readings(self.last_readings)
             if image and self.preview_window:
                 self.preview_window.update_preview(image)
+
+    def setup_plot(self):
+        """Initialize matplotlib figure and canvas."""
+        self.fig = Figure(figsize=(5, 4))
+        self.ax = self.fig.add_subplot(111)
+        self.canvas = FigureCanvas(self.fig)
+        self.plot_layout.addWidget(self.canvas)
+        self.ax.set_title("Last Hour Temperatures")
+        self.ax.set_xlabel("Time")
+        self.ax.set_ylabel("°C")
+        self.fig.autofmt_xdate()
+
+    def update_plot(self):
+        """Plot last hour of enabled channel data on the right."""
+        if not self.history:
+            return
+        cutoff = datetime.now() - timedelta(hours=1)
+        times = []
+        values = []
+
+        # Filter history for last hour
+        for ts, vals in self.history:
+            if ts >= cutoff:
+                times.append(ts)
+                values.append(vals)
+
+        if not times:
+            return
+
+        self.ax.clear()
+        self.ax.set_title("Last Hour Temperatures")
+        self.ax.set_xlabel("Time")
+        self.ax.set_ylabel("°C")
+
+        enabled_indices = [i for i in range(self.channel_count) if self.settings_manager.is_channel_enabled(i)]
+
+        # Build series per enabled channel
+        for idx in enabled_indices:
+            series = [row[idx] for row in values if idx < len(row)]
+            self.ax.plot(times, series, label=f"CH{idx + 1}")
+
+        if enabled_indices:
+            self.ax.legend(loc="upper left")
+
+        self.fig.autofmt_xdate()
+        self.canvas.draw_idle()
 
     def connect_logging_controls(self):
         """Connect menu actions to their respective handlers."""

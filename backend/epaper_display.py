@@ -287,9 +287,6 @@ class EpaperDisplay:
         ax.xaxis.set_major_locator(plt.MaxNLocator(5))
         fig.autofmt_xdate(rotation=0, ha='center')
         
-        # Add legend
-        ax.legend(fontsize=7, loc='upper left', framealpha=0.9)
-        
         fig.tight_layout(pad=0.5)
         
         # Render to PIL Image
@@ -364,6 +361,7 @@ class EpaperDisplay:
             row_spacing = max(40, min(70, available_height // max(1, enabled_count)))
 
             # Display readings in a single column on the left
+            linestyle_symbols = {0: '━', 1: '···', 2: '- -', 3: '-·-', 4: '--··'}
             for display_idx, idx in enumerate(enabled_indices):
                 reading = readings[idx]
                 x_pos = 20
@@ -371,6 +369,10 @@ class EpaperDisplay:
 
                 label = f"CH {idx + 1}:"
                 draw.text((x_pos, y_pos_current), label, font=font_medium, fill=0)
+                
+                # Add line style indicator below channel label
+                style_indicator = linestyle_symbols.get(display_idx % 5, '━')
+                draw.text((x_pos, y_pos_current + 25), style_indicator, font=self.font_small, fill=0)
 
                 try:
                     temp_val = float(reading)

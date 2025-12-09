@@ -20,7 +20,8 @@ class SettingsDialog(QDialog):
         """Initialize the user interface."""
         self.setWindowTitle("ThermoLogger Settings")
         self.setModal(True)
-        self.setMinimumWidth(500)
+        self.setMinimumWidth(600)
+        self.setMinimumHeight(700)
 
         layout = QVBoxLayout()
         self.setLayout(layout)

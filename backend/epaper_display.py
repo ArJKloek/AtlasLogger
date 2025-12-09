@@ -220,11 +220,14 @@ class EpaperDisplay:
         return font_medium, font_unit, font_tc, font_digital
 
     def _draw_plot(self, draw: ImageDraw.ImageDraw, enabled_indices: List[int], x: int, y: int, w: int, h: int):
-        """Draw simple line plot of last hour for enabled channels."""
+        """Draw simple line plot of last hour for enabled channels with fixed scale 0-150°C."""
         if not self.history or not enabled_indices:
             return
 
         cutoff = datetime.now() - timedelta(hours=1)
+        end_time = datetime.now()
+        window_seconds = 3600
+
         series_times = []
         series_values = [[] for _ in enabled_indices]
 
@@ -233,21 +236,18 @@ class EpaperDisplay:
                 series_times.append(ts)
                 for si, ch in enumerate(enabled_indices):
                     if ch < len(vals):
-                        series_values[si].append(vals[ch])
+                        # Clamp to [0,150]
+                        v = vals[ch]
+                        if isinstance(v, (int, float)):
+                            v = max(0, min(150, v))
+                        series_values[si].append(v)
                     else:
                         series_values[si].append(float("nan"))
 
         if not series_times:
             return
 
-        # Determine min/max
-        flat_vals = [v for series in series_values for v in series if isinstance(v, (int, float)) and not math.isnan(v)]
-        if not flat_vals:
-            return
-        vmin, vmax = min(flat_vals), max(flat_vals)
-        if math.isclose(vmin, vmax):
-            vmin -= 1
-            vmax += 1
+        vmin, vmax = 0, 150
 
         # Downsample to fit width
         max_points = max(50, w // 4)
@@ -255,27 +255,64 @@ class EpaperDisplay:
         indices = range(0, len(series_times), step)
 
         def x_pos(idx):
-            return x + int(w * (series_times[idx] - series_times[0]).total_seconds() / max(1, (series_times[-1] - series_times[0]).total_seconds()))
+            span = max(1, window_seconds)
+            seconds = (series_times[idx] - end_time).total_seconds() + window_seconds
+            return x + int(w * seconds / span)
 
         def y_pos(val):
+            if not isinstance(val, (int, float)) or math.isnan(val):
+                return None
             return y + h - int((val - vmin) / (vmax - vmin) * h)
 
+        # Line styles: solid, dashed, dotted, dashdot cycle
+        def draw_series(points, style):
+            if style == "solid":
+                for i in range(1, len(points)):
+                    if points[i-1] and points[i]:
+                        draw.line([points[i-1], points[i]], fill=0, width=2)
+            elif style == "dashed":
+                for i in range(1, len(points)):
+                    if points[i-1] and points[i] and i % 2 == 0:
+                        draw.line([points[i-1], points[i]], fill=0, width=2)
+            elif style == "dotted":
+                for pt in points:
+                    if pt:
+                        draw.ellipse([pt[0]-1, pt[1]-1, pt[0]+1, pt[1]+1], fill=0)
+            elif style == "dashdot":
+                for i in range(1, len(points)):
+                    if points[i-1] and points[i]:
+                        if i % 4 in (0,1):
+                            draw.line([points[i-1], points[i]], fill=0, width=2)
+                        else:
+                            draw.ellipse([points[i][0]-1, points[i][1]-1, points[i][0]+1, points[i][1]+1], fill=0)
+
+        styles = ["solid", "dashed", "dotted", "dashdot"]
+
         for si, series in enumerate(series_values):
-            last_point = None
+            pts = []
             for idx in indices:
                 if idx >= len(series):
                     break
-                val = series[idx]
-                if isinstance(val, (int, float)) and not math.isnan(val):
-                    pt = (x_pos(idx), y_pos(val))
-                    if last_point:
-                        draw.line([last_point, pt], fill=0, width=2)
-                    last_point = pt
-                else:
-                    last_point = None
+                xpt = x_pos(idx)
+                ypt = y_pos(series[idx])
+                pts.append((xpt, ypt) if ypt is not None else None)
+            draw_series(pts, styles[si % len(styles)])
 
-        # Axes
+        # Axes and labels
         draw.rectangle([x, y, x + w, y + h], outline=0, width=1)
+        # Y-axis ticks at 0,50,100,150
+        for t in (0, 50, 100, 150):
+            ty = y_pos(t)
+            if ty is not None:
+                draw.line([x - 5, ty, x, ty], fill=0, width=1)
+                draw.text((x - 30, ty - 8), str(t), font=self.font_small, fill=0)
+
+        # X-axis tick at -60, -30, -0 minutes
+        for mins in (60, 30, 0):
+            tx = x + int(w * (3600 - mins * 60) / window_seconds)
+            draw.line([tx, y + h, tx, y + h + 4], fill=0, width=1)
+            label = f"-{mins}m" if mins else "0m"
+            draw.text((tx - 12, y + h + 6), label, font=self.font_small, fill=0)
 
     def display_readings(self, readings: List[float]):
         """Update only temperature readings with partial refresh (fast update).

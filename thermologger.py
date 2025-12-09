@@ -251,6 +251,7 @@ class MainWindow(QMainWindow):
     def update_epaper_display(self):
         """Update e-paper display with current readings."""
         if self.last_readings:
+            self.epaper.set_history(self.history)
             image = self.epaper.display_readings(self.last_readings)
             if image and self.preview_window:
                 self.preview_window.update_preview(image)

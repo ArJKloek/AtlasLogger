@@ -7,7 +7,7 @@ import sys
 import logging
 import math
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
@@ -32,6 +32,7 @@ class EpaperDisplay:
         self.height = height
         self.epd = None
         self.settings_manager = settings_manager
+        self.history = []
         # Standard fonts for headers and labels
         self.font_large = None
         self.font_medium = None
@@ -179,6 +180,10 @@ class EpaperDisplay:
         if last_log_time:
             self.last_log_time = last_log_time
 
+    def set_history(self, history):
+        """Set history deque for plotting (expects list of (datetime, readings))."""
+        self.history = list(history) if history else []
+
     def _make_font(self, path: Optional[str], size: int, fallback) -> ImageFont.FreeTypeFont:
         """Create a font from path if available, otherwise fallback."""
         if path:
@@ -213,6 +218,64 @@ class EpaperDisplay:
         font_digital = self._make_font(self.font_path_digital, digital_size, self.font_digital_medium)
 
         return font_medium, font_unit, font_tc, font_digital
+
+    def _draw_plot(self, draw: ImageDraw.ImageDraw, enabled_indices: List[int], x: int, y: int, w: int, h: int):
+        """Draw simple line plot of last hour for enabled channels."""
+        if not self.history or not enabled_indices:
+            return
+
+        cutoff = datetime.now() - timedelta(hours=1)
+        series_times = []
+        series_values = [[] for _ in enabled_indices]
+
+        for ts, vals in self.history:
+            if ts >= cutoff:
+                series_times.append(ts)
+                for si, ch in enumerate(enabled_indices):
+                    if ch < len(vals):
+                        series_values[si].append(vals[ch])
+                    else:
+                        series_values[si].append(float("nan"))
+
+        if not series_times:
+            return
+
+        # Determine min/max
+        flat_vals = [v for series in series_values for v in series if isinstance(v, (int, float)) and not math.isnan(v)]
+        if not flat_vals:
+            return
+        vmin, vmax = min(flat_vals), max(flat_vals)
+        if math.isclose(vmin, vmax):
+            vmin -= 1
+            vmax += 1
+
+        # Downsample to fit width
+        max_points = max(50, w // 4)
+        step = max(1, len(series_times) // max_points)
+        indices = range(0, len(series_times), step)
+
+        def x_pos(idx):
+            return x + int(w * (series_times[idx] - series_times[0]).total_seconds() / max(1, (series_times[-1] - series_times[0]).total_seconds()))
+
+        def y_pos(val):
+            return y + h - int((val - vmin) / (vmax - vmin) * h)
+
+        for si, series in enumerate(series_values):
+            last_point = None
+            for idx in indices:
+                if idx >= len(series):
+                    break
+                val = series[idx]
+                if isinstance(val, (int, float)) and not math.isnan(val):
+                    pt = (x_pos(idx), y_pos(val))
+                    if last_point:
+                        draw.line([last_point, pt], fill=0, width=2)
+                    last_point = pt
+                else:
+                    last_point = None
+
+        # Axes
+        draw.rectangle([x, y, x + w, y + h], outline=0, width=1)
 
     def display_readings(self, readings: List[float]):
         """Update only temperature readings with partial refresh (fast update).
@@ -263,6 +326,11 @@ class EpaperDisplay:
             enabled_count = len(enabled_indices)
             font_medium, font_unit, font_tc, font_digital = self._select_fonts(enabled_count)
 
+            # Layout split: left for values, right for plot
+            left_width = int(self.width * 0.45)
+            right_x = left_width + 10
+            right_width = self.width - right_x - 10
+
             # Compute vertical spacing to fit all enabled channels in one column
             available_height = self.height - self.data_start_y - 10
             row_spacing = max(40, min(70, available_height // max(1, enabled_count)))
@@ -273,11 +341,9 @@ class EpaperDisplay:
                 x_pos = 20
                 y_pos_current = self.data_start_y + display_idx * row_spacing
 
-                # Channel label (standard font)
                 label = f"CH {idx + 1}:"
                 draw.text((x_pos, y_pos_current), label, font=font_medium, fill=0)
 
-                # Temperature value (Digital-7 Mono font for number, standard font for unit)
                 try:
                     temp_val = float(reading)
                     if not math.isnan(temp_val):
@@ -290,15 +356,15 @@ class EpaperDisplay:
                     value_text = "--"
                     unit_text = "°C"
                 
-                # Draw temperature number in Digital-7 Mono
                 draw.text((x_pos + 150, y_pos_current), value_text, font=font_digital, fill=0)
-                # Draw unit (°C) in small font as indicator, positioned higher
                 draw.text((x_pos + 320, y_pos_current + 5), unit_text, font=font_unit, fill=0)
                 
-                # Draw thermocouple type below the unit in italic, smaller font - aligned with bottom of unit
                 if self.settings_manager:
                     tc_type = self.settings_manager.get_channel_type(idx)
                     draw.text((x_pos + 320, y_pos_current + 35), tc_type, font=font_tc, fill=0)
+
+            # Plot last hour on the right
+            self._draw_plot(draw, enabled_indices, right_x, 110, right_width, self.height - 120)
 
             # Partial refresh the full screen (partial mode was already activated in init_display)
             self.epd.display_Partial(

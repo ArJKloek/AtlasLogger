@@ -353,11 +353,11 @@ class EpaperDisplay:
             # Layout split: left for values, right for plot (50/50 split)
             left_width = int(self.width * 0.5)
             right_available = self.width - left_width - 10
-            right_width = int(right_available * 0.8)  # Plot takes 80% of available space
+            right_width = right_available  # Plot takes full available space
             # Align plot to the right edge
             plot_x = self.width - right_width - 10
-            # Plot height is 80% of available
-            plot_height = int((self.height - self.data_start_y - 10) * 0.8)
+            # Plot height is full available height
+            plot_height = self.height - self.data_start_y - 10
 
             # Compute vertical spacing to fit all enabled channels in one column
             available_height = self.height - self.data_start_y - 10

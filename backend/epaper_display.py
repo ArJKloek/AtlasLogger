@@ -260,7 +260,7 @@ class EpaperDisplay:
         vmin = max(0, data_min - padding)
         vmax = min(150, data_max + padding)
 
-        # Create matplotlib figure
+        # Create matplotlib figure with fixed subplot positioning
         dpi = 100
         fig = Figure(figsize=(w/dpi, h/dpi), dpi=dpi, facecolor='white')
         ax = fig.add_subplot(111)
@@ -289,7 +289,8 @@ class EpaperDisplay:
         ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=15))
         fig.autofmt_xdate(rotation=0, ha='center')
         
-        fig.tight_layout(pad=0.5)
+        # Use subplots_adjust for consistent positioning instead of tight_layout
+        fig.subplots_adjust(left=0.12, right=0.95, top=0.95, bottom=0.15)
         
         # Render to PIL Image
         buf = io.BytesIO()

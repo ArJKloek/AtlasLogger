@@ -11,6 +11,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
+import matplotlib
+matplotlib.use('Agg')  # Non-interactive backend
+import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
+import io
 
 try:
     from waveshare_epd import epd7in5_V2
@@ -220,9 +225,9 @@ class EpaperDisplay:
         return font_medium, font_unit, font_tc, font_digital
 
     def _draw_plot(self, draw: ImageDraw.ImageDraw, enabled_indices: List[int], x: int, y: int, w: int, h: int):
-        """Draw simple line plot of last hour for enabled channels with dynamic scale."""
+        """Draw matplotlib plot of last hour for enabled channels."""
         if not self.history or not enabled_indices:
-            return
+            return None
 
         cutoff = datetime.now() - timedelta(hours=1)
         series_times = []
@@ -231,9 +236,8 @@ class EpaperDisplay:
         for ts, vals in self.history:
             if ts >= cutoff:
                 series_times.append(ts)
-                for si, ch in enumerate(enabled_indices):
+                for si, ch in enabled_indices:
                     if ch < len(vals):
-                        # Clamp to [0,150]
                         v = vals[ch]
                         if isinstance(v, (int, float)):
                             v = max(0, min(150, v))
@@ -242,113 +246,60 @@ class EpaperDisplay:
                         series_values[si].append(float("nan"))
 
         if not series_times:
-            return
+            return None
 
-        vmin, vmax = 0, 150
-
-        # Dynamic temp scale: find min/max from data, with some padding
+        # Dynamic temp scale
         flat_vals = [v for series in series_values for v in series if isinstance(v, (int, float)) and not math.isnan(v)]
-        if flat_vals:
-            data_min = min(flat_vals)
-            data_max = max(flat_vals)
-            padding = (data_max - data_min) * 0.1 if data_max > data_min else 5
-            vmin = max(0, data_min - padding)
-            vmax = min(150, data_max + padding)
-
-        # Dynamic time window: use actual data span
-        t_min = series_times[0]
-        t_max = series_times[-1]
-        t_span = (t_max - t_min).total_seconds()
-        if t_span < 1:
-            t_span = 1
-
-        # Downsample to fit width
-        max_points = max(20, w // 2)
-        step = max(1, len(series_times) // max_points)
-        indices = range(0, len(series_times), step)
-
-        def x_pos(idx):
-            return x + int(w * (series_times[idx] - t_min).total_seconds() / t_span)
-
-        def y_pos(val):
-            if not isinstance(val, (int, float)) or math.isnan(val):
-                return None
-            return y + h - int((val - vmin) / (vmax - vmin) * h)
-
-        # Line styles: solid, dotted, dashed, dashdot, dash-dash-dot-dot
-        def draw_series(points, style):
-            if style == "solid":
-                for i in range(1, len(points)):
-                    if points[i-1] and points[i]:
-                        draw.line([points[i-1], points[i]], fill=0, width=2)
-            elif style == "dotted":
-                for pt in points:
-                    if pt:
-                        draw.ellipse([pt[0]-2, pt[1]-2, pt[0]+2, pt[1]+2], fill=0)
-            elif style == "dashed":
-                for i in range(1, len(points)):
-                    if points[i-1] and points[i]:
-                        # Draw every other segment
-                        if i % 2 == 1:
-                            draw.line([points[i-1], points[i]], fill=0, width=2)
-            elif style == "dashdot":
-                for i in range(1, len(points)):
-                    if points[i-1] and points[i]:
-                        # Pattern: dash-dot-dash-dot (every 2 segments: 1 line, then 1 dot)
-                        if i % 4 in (1, 2):
-                            draw.line([points[i-1], points[i]], fill=0, width=2)
-                        elif i % 4 == 3:
-                            pt = points[i]
-                            draw.ellipse([pt[0]-2, pt[1]-2, pt[0]+2, pt[1]+2], fill=0)
-            elif style == "dashdashdotdot":
-                for i in range(1, len(points)):
-                    if points[i-1] and points[i]:
-                        # Pattern: dash-dash-dot-dot (8 steps: 2 dashes, then 2 dots)
-                        cycle_pos = i % 8
-                        if cycle_pos in (1, 2, 3, 4):  # Two dashes
-                            draw.line([points[i-1], points[i]], fill=0, width=2)
-                        elif cycle_pos in (6, 7):  # Two dots
-                            pt = points[i]
-                            draw.ellipse([pt[0]-2, pt[1]-2, pt[0]+2, pt[1]+2], fill=0)
-
-        styles = ["solid", "dotted", "dashed", "dashdot", "dashdashdotdot"]
-
-        for si, series in enumerate(series_values):
-            pts = []
-            for idx in indices:
-                if idx >= len(series):
-                    break
-                xpt = x_pos(idx)
-                ypt = y_pos(series[idx])
-                pts.append((xpt, ypt) if ypt is not None else None)
-            draw_series(pts, styles[si % len(styles)])
-
-        # Axes and labels
-        draw.rectangle([x, y, x + w, y + h], outline=0, width=1)
+        if not flat_vals:
+            return None
         
-        # Y-axis: 4 degree ticks with dynamic scale
-        y_ticks = [vmin, vmin + (vmax - vmin) * 1/3, vmin + (vmax - vmin) * 2/3, vmax]
-        for t in y_ticks:
-            ty = y_pos(t)
-            if ty is not None:
-                draw.line([x - 3, ty, x, ty], fill=0, width=1)
-                label = f"{int(round(t))}"
-                # Move further left to avoid overlap
-                draw.text((x - 40, ty - 6), label, font=self.font_small, fill=0)
+        data_min = min(flat_vals)
+        data_max = max(flat_vals)
+        padding = (data_max - data_min) * 0.1 if data_max > data_min else 5
+        vmin = max(0, data_min - padding)
+        vmax = min(150, data_max + padding)
+
+        # Create matplotlib figure
+        dpi = 100
+        fig = Figure(figsize=(w/dpi, h/dpi), dpi=dpi, facecolor='white')
+        ax = fig.add_subplot(111)
         
-        # X-axis: 5 time ticks
-        time_points = []
-        for i in range(5):
-            idx = int(len(series_times) * i / 4) if len(series_times) > 0 else 0
-            if idx < len(series_times):
-                time_points.append((idx, series_times[idx]))
+        # Line styles for each channel
+        linestyles = ['-', ':', '--', '-.', (0, (3, 1, 1, 1, 1, 1))]
         
-        for idx, ts in time_points:
-            tx = x_pos(idx)
-            draw.line([tx, y + h, tx, y + h + 3], fill=0, width=1)
-            # Format time as HH:MM
-            time_label = ts.strftime("%H:%M")
-            draw.text((tx - 15, y + h + 5), time_label, font=self.font_small, fill=0)
+        # Plot each enabled channel
+        for si, ch_idx in enumerate(enabled_indices):
+            style = linestyles[si % len(linestyles)]
+            ax.plot(series_times, series_values[si], 
+                   linestyle=style, 
+                   color='black', 
+                   linewidth=1.5,
+                   label=f'CH{ch_idx + 1}')
+        
+        # Configure axes
+        ax.set_ylim(vmin, vmax)
+        ax.set_ylabel('Temperature (°C)', fontsize=8)
+        ax.set_xlabel('Time', fontsize=8)
+        ax.tick_params(axis='both', labelsize=7)
+        ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.5)
+        
+        # Format time axis
+        ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+        fig.autofmt_xdate(rotation=0, ha='center')
+        
+        # Add legend
+        ax.legend(fontsize=7, loc='upper left', framealpha=0.9)
+        
+        fig.tight_layout(pad=0.5)
+        
+        # Render to PIL Image
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png', dpi=dpi, facecolor='white', edgecolor='none')
+        buf.seek(0)
+        plot_img = Image.open(buf).convert('1')
+        plt.close(fig)
+        
+        return plot_img, x, y
 
     def display_readings(self, readings: List[float]):
         """Update only temperature readings with partial refresh (fast update).
@@ -440,8 +391,11 @@ class EpaperDisplay:
                     tc_type = self.settings_manager.get_channel_type(idx)
                     draw.text((x_pos + 320, y_pos_current + 35), tc_type, font=font_tc, fill=0)
 
-            # Plot last hour on the right
-            self._draw_plot(draw, enabled_indices, plot_x, self.data_start_y, right_width, plot_height)
+            # Plot last hour on the right using matplotlib
+            plot_result = self._draw_plot(draw, enabled_indices, plot_x, self.data_start_y, right_width, plot_height)
+            if plot_result:
+                plot_img, px, py = plot_result
+                image.paste(plot_img, (px, py))
 
             # Partial refresh the full screen (partial mode was already activated in init_display)
             self.epd.display_Partial(

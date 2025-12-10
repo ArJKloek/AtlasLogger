@@ -232,18 +232,24 @@ class EpaperDisplay:
         return font_medium, font_unit, font_tc, font_digital
 
     def _draw_plot(self, draw: ImageDraw.ImageDraw, enabled_indices: List[int], x: int, y: int, w: int, h: int):
-        """Draw matplotlib plot of last hour for enabled channels."""
+        """Draw matplotlib plot of last hour for enabled channels (excluding unplugged)."""
         if not self.history or not enabled_indices:
+            return None
+
+        # Filter out unplugged channels from the plot
+        plot_indices = [idx for idx in enabled_indices if (idx + 1) not in self.unplugged_channels]
+        
+        if not plot_indices:
             return None
 
         cutoff = datetime.now() - timedelta(hours=1)
         series_times = []
-        series_values = [[] for _ in enabled_indices]
+        series_values = [[] for _ in plot_indices]
 
         for ts, vals in self.history:
             if ts >= cutoff:
                 series_times.append(ts)
-                for si, ch in enumerate(enabled_indices):
+                for si, ch in enumerate(plot_indices):
                     if ch < len(vals):
                         v = vals[ch]
                         if isinstance(v, (int, float)):
@@ -274,8 +280,8 @@ class EpaperDisplay:
         # Line styles for each channel
         linestyles = ['-', ':', '--', '-.', (0, (3, 1, 1, 1, 1, 1))]
         
-        # Plot each enabled channel
-        for si, ch_idx in enumerate(enabled_indices):
+        # Plot each enabled channel (excluding unplugged)
+        for si, ch_idx in enumerate(plot_indices):
             style = linestyles[si % len(linestyles)]
             ax.plot(series_times, series_values[si], 
                    linestyle=style, 

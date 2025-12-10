@@ -40,6 +40,7 @@ class EpaperDisplay:
         self.settings_manager = settings_manager
         self.history = []
         self.unplugged_channels: List[int] = []  # Channels with 0.00 mV (unplugged)
+        self.unplugged_icon = None  # Cached unplugged icon image
         # Standard fonts for headers and labels
         self.font_large = None
         self.font_medium = None
@@ -305,6 +306,39 @@ class EpaperDisplay:
     def set_unplugged_channels(self, unplugged: List[int]) -> None:
         """Set the list of unplugged channels to display."""
         self.unplugged_channels = unplugged
+        # Load unplugged icon if not already loaded
+        if self.unplugged_icon is None:
+            self._load_unplugged_icon()
+
+    def _load_unplugged_icon(self) -> None:
+        """Load and cache the unplugged icon image (resized to 30x30)."""
+        try:
+            # Get project root
+            project_root = Path(__file__).parent.parent
+            icon_paths = [
+                project_root / "ui" / "unplugged.png",
+                Path.home() / "ThermoLogger" / "ui" / "unplugged.png",
+                "/home/pi/ThermoLogger/ui/unplugged.png",
+            ]
+            
+            icon_path = None
+            for path in icon_paths:
+                if Path(path).exists():
+                    icon_path = path
+                    break
+            
+            if icon_path:
+                img = Image.open(str(icon_path)).convert("1")  # Convert to 1-bit B&W
+                # Resize to 30x30 pixels
+                self.unplugged_icon = img.resize((30, 30), Image.Resampling.LANCZOS)
+                logging.info(f"Loaded unplugged icon from: {icon_path}")
+                print(f"[EPAPER] Loaded unplugged icon: {icon_path}")
+            else:
+                logging.warning("Unplugged icon not found")
+                print("[EPAPER] Warning: unplugged.png not found")
+        except Exception as e:
+            logging.warning(f"Failed to load unplugged icon: {e}")
+            print(f"[EPAPER] Warning: Failed to load unplugged icon: {e}")
 
     def display_readings(self, readings: List[float]):
         """Update only temperature readings with partial refresh (fast update).
@@ -378,9 +412,11 @@ class EpaperDisplay:
                 label = f"CH {idx + 1}:"
                 draw.text((x_pos, y_pos_current), label, font=font_medium, fill=0)
                 
-                # Add unplugged indicator or line style indicator below channel label
+                # Add unplugged icon or line style indicator below channel label
                 if (idx + 1) in self.unplugged_channels:
-                    draw.text((x_pos, y_pos_current + 25), "[UNPLUGGED]", font=self.font_small, fill=0)
+                    if self.unplugged_icon:
+                        # Paste the unplugged icon
+                        image.paste(self.unplugged_icon, (x_pos, y_pos_current + 20), self.unplugged_icon)
                 else:
                     style_indicator = linestyle_symbols.get(display_idx % 5, '━')
                     draw.text((x_pos, y_pos_current + 25), style_indicator, font=self.font_small, fill=0)

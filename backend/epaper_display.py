@@ -378,11 +378,10 @@ class EpaperDisplay:
                 label = f"CH {idx + 1}:"
                 draw.text((x_pos, y_pos_current), label, font=font_medium, fill=0)
                 
-                # Add unplugged indicator if channel is not connected
+                # Add unplugged indicator or line style indicator below channel label
                 if (idx + 1) in self.unplugged_channels:
-                    draw.text((x_pos + 140, y_pos_current), "[UNPLUGGED]", font=self.font_small, fill=0)
+                    draw.text((x_pos, y_pos_current + 25), "[UNPLUGGED]", font=self.font_small, fill=0)
                 else:
-                    # Add line style indicator below channel label
                     style_indicator = linestyle_symbols.get(display_idx % 5, '━')
                     draw.text((x_pos, y_pos_current + 25), style_indicator, font=self.font_small, fill=0)
 

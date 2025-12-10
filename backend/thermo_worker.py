@@ -44,6 +44,10 @@ class DummySMtc:
             temp = base_temp + 2.5 * math.sin(time.time() / 15.0 + phase)
         
         return round(temp, 1)
+    
+    def get_mv(self, channel: int) -> float:
+        """Return a dummy voltage value (not used in dummy mode)."""
+        return 0.0
 
 
 class ThermoThread(QThread):
@@ -116,7 +120,16 @@ class ThermoThread(QThread):
             readings: List[float] = []
             for idx in range(self.channels):
                 try:
-                    readings.append(self.device.get_temp(idx + 1))
+                    temp = self.device.get_temp(idx + 1)
+                    readings.append(temp)
+                    
+                    # Read and print voltage for hardware mode
+                    if self.source == "hardware":
+                        try:
+                            mv = self.device.get_mv(idx + 1)
+                            print(f"[VOLTAGE] CH{idx + 1}: {mv:.2f} mV (Temp: {temp:.1f}°C)")
+                        except Exception as mv_exc:
+                            print(f"[VOLTAGE ERROR] CH{idx + 1}: {mv_exc}")
                 except Exception as exc:
                     self.error.emit(str(exc))
                     readings.append(float("nan"))

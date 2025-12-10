@@ -297,6 +297,12 @@ class EpaperDisplay:
         ax.set_ylabel('Temperature (°C)', fontsize=8)
         ax.set_xlabel('Time', fontsize=8)
         ax.tick_params(axis='both', labelsize=7)
+        
+        # Set y-axis ticks every 5 degrees
+        import numpy as np
+        y_ticks = np.arange(vmin, vmax + 1, 5)
+        ax.set_yticks(y_ticks)
+        
         ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.5)
         
         # Format time axis to show clock times (HH:MM)

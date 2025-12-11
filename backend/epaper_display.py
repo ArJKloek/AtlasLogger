@@ -358,7 +358,7 @@ class EpaperDisplay:
                 if img.mode != "RGBA":
                     img = img.convert("RGBA")
                 # Resize to 30x30 pixels
-                img = img.resize((30, 30), Image.Resampling.LANCZOS)
+                img = img.resize((30, 24), Image.Resampling.LANCZOS)
                 # Store as RGBA (we'll composite it properly when pasting)
                 self.unplugged_icon = img
                 logging.info(f"Loaded unplugged icon from: {icon_path}")

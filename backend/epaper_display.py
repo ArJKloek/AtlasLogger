@@ -354,12 +354,11 @@ class EpaperDisplay:
             
             if icon_path:
                 img = Image.open(str(icon_path))
-                # Keep RGBA to preserve transparency
-                if img.mode != "RGBA":
-                    img = img.convert("RGBA")
-                # Resize to 30x24 pixels
-                img = img.resize((30, 24), Image.Resampling.LANCZOS)
-                # Store as RGBA (we'll composite it properly when pasting)
+                # Convert to 1-bit first for e-paper compatibility
+                img = img.convert("1")
+                # Resize to 30x24 pixels without stretching
+                img.thumbnail((30, 24), Image.Resampling.LANCZOS)
+                # Store as 1-bit
                 self.unplugged_icon = img
                 logging.info(f"Loaded unplugged icon from: {icon_path}")
                 print(f"[EPAPER] Loaded unplugged icon: {icon_path}")
@@ -450,13 +449,12 @@ class EpaperDisplay:
                 if (idx + 1) in self.unplugged_channels:
                     if self.unplugged_icon:
                         try:
-                            icon_1bit = self.unplugged_icon.convert("1")
-                            icon_w, icon_h = icon_1bit.size
+                            icon_w, icon_h = self.unplugged_icon.size
                             icon_x = x_pos + label_width + 6  # small gap after text
                             # Vertically center icon relative to label text
                             label_height = label_bbox[3] - label_bbox[1]
                             icon_y = y_pos_current + max(0, (label_height - icon_h) // 2)
-                            image.paste(icon_1bit, (icon_x, icon_y), self.unplugged_icon)
+                            image.paste(self.unplugged_icon, (icon_x, icon_y))
                         except Exception as e:
                             print(f"[EPAPER] Error pasting icon: {e}")
                 else:

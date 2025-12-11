@@ -12,8 +12,12 @@ _TCP_VAL1_ADD = 0
 _TCP_TYPE1_ADD = 16
 _REVISION_HW_MAJOR_MEM_ADD = 47
 _REVISION_HW_MINOR_MEM_ADD = 48
+_DIAG_TEMPERATURE_MEM_ADD = 35  # On-board diagnostic temperature sensor
+_DIAG_5V_MEM_ADD = 36  # On-board 5V supply voltage
 _TCP_MV1_ADD = 51
 _MV_SCALE_FACTOR = 100.0
+_DIAG_TEMP_SCALE_FACTOR = 10.0  # Same scale as thermocouple temperature
+_DIAG_5V_SCALE_FACTOR = 100.0  # 5V reading scale
 
 _TC_TYPE_B = 0
 _TC_TYPE_E = 1
@@ -92,6 +96,30 @@ class SMtc:
             raise Exception("Fail to read with exception " + str(e))
         bus.close()
         return val[0] / _MV_SCALE_FACTOR
+
+    def get_diag_temperature(self):
+        """Read on-board diagnostic temperature in °C and return as float."""
+        bus = smbus2.SMBus(self._i2c_bus_no)
+        try:
+            buff = bus.read_i2c_block_data(self._hw_address_, _DIAG_TEMPERATURE_MEM_ADD, 2)
+            val = struct.unpack('h', bytearray(buff))
+        except Exception as e:
+            bus.close()
+            raise Exception("Fail to read diagnostic temperature with exception " + str(e))
+        bus.close()
+        return val[0] / _DIAG_TEMP_SCALE_FACTOR
+
+    def get_diag_5v(self):
+        """Read on-board 5V supply voltage in volts and return as float."""
+        bus = smbus2.SMBus(self._i2c_bus_no)
+        try:
+            buff = bus.read_i2c_block_data(self._hw_address_, _DIAG_5V_MEM_ADD, 2)
+            val = struct.unpack('h', bytearray(buff))
+        except Exception as e:
+            bus.close()
+            raise Exception("Fail to read 5V supply with exception " + str(e))
+        bus.close()
+        return val[0] / _DIAG_5V_SCALE_FACTOR
 
     def print_sensor_type(self, channel):
         print(_TC_TYPES[self.get_sensor_type(channel)])

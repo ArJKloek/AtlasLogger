@@ -101,16 +101,18 @@ class SMtc:
         return val[0] / _MV_SCALE_FACTOR
 
     def get_diag_temperature(self):
-        """Read on-board diagnostic temperature in °C and return as float."""
-        bus = smbus2.SMBus(self._i2c_bus_no)
-        try:
-            buff = bus.read_i2c_block_data(self._hw_address_, _DIAG_TEMPERATURE_MEM_ADD, 2)
-            val = struct.unpack('h', bytearray(buff))
-        except Exception as e:
+            """Read on-board CPU/diagnostic temperature in °C (1 byte, signed)."""
+            bus = smbus2.SMBus(self._i2c_bus_no)
+            try:
+                raw = bus.read_byte_data(self._hw_address_, _DIAG_TEMPERATURE_MEM_ADD)
+                # convert to signed int8
+                if raw > 127:
+                    raw -= 256
+            except Exception as e:
+                bus.close()
+                raise Exception("Fail to read diagnostic temperature with exception " + str(e))
             bus.close()
-            raise Exception("Fail to read diagnostic temperature with exception " + str(e))
-        bus.close()
-        return val[0] / _DIAG_TEMP_SCALE_FACTOR
+            return float(raw)
 
     def get_diag_5v(self):
         """Read on-board 5V supply voltage in volts and return as float."""

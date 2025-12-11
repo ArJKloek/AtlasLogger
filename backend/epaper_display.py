@@ -357,7 +357,7 @@ class EpaperDisplay:
                 # Keep RGBA to preserve transparency
                 if img.mode != "RGBA":
                     img = img.convert("RGBA")
-                # Resize to 30x30 pixels
+                # Resize to 30x24 pixels
                 img = img.resize((30, 24), Image.Resampling.LANCZOS)
                 # Store as RGBA (we'll composite it properly when pasting)
                 self.unplugged_icon = img

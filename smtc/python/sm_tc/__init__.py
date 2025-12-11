@@ -115,16 +115,16 @@ class SMtc:
             return float(raw)
 
     def get_diag_5v(self):
-        """Read on-board 5V supply voltage in volts and return as float."""
+        """Read on-board 5V rail (u16, little-endian) scaled /100 to volts."""
         bus = smbus2.SMBus(self._i2c_bus_no)
         try:
             buff = bus.read_i2c_block_data(self._hw_address_, _DIAG_5V_MEM_ADD, 2)
-            val = struct.unpack('h', bytearray(buff))
+            val = struct.unpack('<H', bytearray(buff))[0]
         except Exception as e:
             bus.close()
             raise Exception("Fail to read 5V supply with exception " + str(e))
         bus.close()
-        return val[0] / _DIAG_5V_SCALE_FACTOR
+        return val / _DIAG_5V_SCALE_FACTOR
 
     def get_thermistor_temp(self, channel):
         """Read on-board thermistor temperature in °C and return as float.

@@ -27,14 +27,15 @@ def main():
 
     ch_count = 8
     
-    # Build header with alternating columns for each channel
+    # Build header with alternating columns for each channel: mV, Board, Therm
     header = ['Time']
     for ch in range(1, ch_count + 1):
+        header.append(f"CH{ch}-mV")
         header.append(f"CH{ch}-Board")
         header.append(f"CH{ch}-Therm")
     
-    print(" | ".join(f"{h:>10}" for h in header))
-    print('-' * (13 + (ch_count * 22)))
+    print(" | ".join(f"{h:>9}" for h in header))
+    print('-' * (13 + (ch_count * 33)))
 
     try:
         while True:
@@ -43,11 +44,14 @@ def main():
             
             for ch in range(1, ch_count + 1):
                 try:
+                    mv = card.get_mv(ch)
                     board_c = card.get_temp(ch)
                     therm_c = card.get_thermistor_temp(ch)
-                    row.append(f"{board_c:10.2f}")
-                    row.append(f"{therm_c:10.2f}")
+                    row.append(f"{mv:9.3f}")
+                    row.append(f"{board_c:9.2f}")
+                    row.append(f"{therm_c:9.2f}")
                 except Exception as e:
+                    row.append("      ERR")
                     row.append("      ERR")
                     row.append("      ERR")
             

@@ -3,6 +3,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from collections import deque
 from datetime import datetime, timedelta
+import math
 
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QGridLayout, QLabel, QHBoxLayout, QPushButton
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal
@@ -297,13 +298,20 @@ class PlotWindow(QWidget):
         self.ax.set_ylabel("°C")
         
         enabled_indices = [i for i in range(channel_count) if settings_manager.is_channel_enabled(i)]
+        plotted_values = []
         
         # Line styles
         linestyles = ['-', ':', '--', '-.', (0, (3, 1, 1, 1, 1, 1))]
         
         # Build series per enabled channel
         for si, idx in enumerate(enabled_indices):
-            series = [row[idx] for row in values if idx < len(row)]
+            series = []
+            for row in values:
+                if idx < len(row):
+                    v = row[idx]
+                    if isinstance(v, (int, float)) and not math.isnan(v):
+                        plotted_values.append(v)
+                    series.append(v)
             style = linestyles[si % len(linestyles)]
             self.ax.plot(times, series, label=f"CH{idx + 1}", linestyle=style, linewidth=1.5)
         
@@ -313,6 +321,25 @@ class PlotWindow(QWidget):
         # Format time axis
         self.ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
         self.ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=15))
+
+        # Dynamic scale with 10% headroom and clean 10°C boundaries.
+        if plotted_values:
+            data_min = min(plotted_values)
+            data_max = max(plotted_values)
+            span = data_max - data_min
+
+            top_padding = max(10.0, (span if span > 0 else max(abs(data_max), 10.0)) * 0.10)
+            bottom_padding = max(0.0, span * 0.05)
+
+            vmin = int(math.floor((data_min - bottom_padding) / 10.0) * 10)
+            vmax = int(math.ceil((data_max + top_padding) / 10.0) * 10)
+
+            vmin = max(0, vmin)
+            if vmax <= vmin:
+                vmax = vmin + 10
+
+            self.ax.set_ylim(vmin, vmax)
+            self.ax.set_yticks(list(range(vmin, vmax + 1, 10)))
         
         self.ax.grid(True, alpha=0.3)
         self.fig.autofmt_xdate(rotation=0, ha='center')

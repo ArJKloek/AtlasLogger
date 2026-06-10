@@ -273,8 +273,6 @@ class EpaperDisplay:
                 for si, ch in enumerate(plot_indices):
                     if ch < len(vals):
                         v = vals[ch]
-                        if isinstance(v, (int, float)):
-                            v = max(0, min(150, v))
                         series_values[si].append(v)
                     else:
                         series_values[si].append(float("nan"))
@@ -282,19 +280,23 @@ class EpaperDisplay:
         if not series_times:
             return None
 
-        # Dynamic temp scale: +5°C above max, -5°C below min, rounded to nearest 5
+        # Dynamic scale with 10% headroom and clean 10°C tick/boundary values.
         flat_vals = [v for series in series_values for v in series if isinstance(v, (int, float)) and not math.isnan(v)]
         if not flat_vals:
             return None
         
         data_min = min(flat_vals)
         data_max = max(flat_vals)
-        # Round to nearest 5: floor(min-5) to nearest 5, ceil(max+5) to nearest 5
-        vmin = int(math.floor((data_min - 5) / 5) * 5)
-        vmax = int(math.ceil((data_max + 5) / 5) * 5)
-        # Clamp to reasonable temperature range
+        span = data_max - data_min
+        top_padding = max(10.0, (span if span > 0 else max(abs(data_max), 10.0)) * 0.10)
+        bottom_padding = max(0.0, span * 0.05)
+
+        vmin = int(math.floor((data_min - bottom_padding) / 10.0) * 10)
+        vmax = int(math.ceil((data_max + top_padding) / 10.0) * 10)
+
         vmin = max(0, vmin)
-        vmax = min(150, vmax)
+        if vmax <= vmin:
+            vmax = vmin + 10
 
         # Create matplotlib figure with fixed subplot positioning
         dpi = 100
@@ -325,9 +327,9 @@ class EpaperDisplay:
         ax.set_xlabel('Time', fontsize=8)
         ax.tick_params(axis='both', labelsize=7)
         
-        # Set y-axis ticks every 5 degrees
+        # Use clean 10°C y-axis ticks (e.g. 150, 160, 170)
         import numpy as np
-        y_ticks = np.arange(vmin, vmax + 1, 5)
+        y_ticks = np.arange(vmin, vmax + 1, 10)
         ax.set_yticks(y_ticks)
         
         ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.5)
